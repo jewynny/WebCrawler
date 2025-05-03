@@ -64,7 +64,15 @@ class RedditSpider(scrapy.Spider):
                 self.logger.warning(f"Couldn't load visited_authors.json: {e}")
                 self.visited_map = {}
 
-        # Tracks Already Crawled Subreddits
+        # Tracks Visit Subreddits, Later To Push To File
+        self.visited_subreddits = set()
+        if os.path.exists("visited_subreddits.json"):
+            try:
+                with open("visited_subreddits.json", "r") as f:
+                    self.visited_subreddits = set(json.load(f))
+            except Exception as e:
+                self.logger.warning(f"Couldn't load visited_subreddits.json: {e}")
+
         self.visited_authors = set(self.subreddits_to_crawl)
         for sublist in self.visited_map.values():
             self.visited_authors.update(sublist)
@@ -79,11 +87,12 @@ class RedditSpider(scrapy.Spider):
     # Initalizes Set To Track Subreddit Visited
     def start_requests(self):
         for sub_name in self.subreddits_to_crawl:
+            self.visited_subreddits.add(sub_name)
             subreddit = self.reddit.subreddit(sub_name)
             seen_ids = set()
 
             # Grabs The Number Of Posts Specified
-            for post in subreddit.hot(limit=5):
+            for post in subreddit.hot(limit=2):
                 # Checks If Subreddit Has Been Visited Or not
                 if post.id in seen_ids:
                     continue
@@ -132,7 +141,7 @@ class RedditSpider(scrapy.Spider):
                 submissions = self.reddit.redditor(author).submissions.new(limit=5)
                 subreddits = [s.subreddit.display_name for s in submissions]
 
-                 # Collect new subreddits not yet crawled
+                # Collect new subreddits not yet crawled
                 for sub in subreddits:
                     if sub not in self.visited_authors:
                         self.new_subreddits.add(sub)
@@ -157,13 +166,21 @@ class RedditSpider(scrapy.Spider):
 
             yield item
 
-        # Updates Visited Subreddit Json File
+        # Updates Visited Authors Json File
         try:
             with open("visited_authors.json", "w") as f:
                 json.dump(self.visited_map, f, indent=2)
             self.logger.info("Saved Successfully.")
         except Exception as e:
             self.logger.warning(f"Failed To Save: {e}")
+
+        # Updated Visited Subreddit File
+        try:
+            with open("visited_subreddits.json", "w") as f:
+                json.dump(sorted(list(self.visited_subreddits)), f, indent=2)
+            self.logger.info("Saved visited_subreddits.json")
+        except Exception as e:
+            self.logger.warning(f"Failed to save visited_subreddits.json: {e}")
 
         # Save Newly Discovered Subreddits To File
         try:
