@@ -7,7 +7,13 @@ import json
 import os
 
 class RedditSpider(scrapy.Spider):
+    # crawler name (to be used in `scrapy crawl [name] -O 'output.json'`)
     name = "redditor"
+    # number of hot posts per subreddit
+    n_posts = 10
+    # number of newest submissions per user (to find their submissions)
+    n_submissions = 5
+
 
     # Information Required To Access Reddit
     def __init__(self):
@@ -92,7 +98,7 @@ class RedditSpider(scrapy.Spider):
             seen_ids = set()
 
             # Grabs The Number Of Posts Specified
-            for post in subreddit.hot(limit=2):
+            for post in subreddit.hot(limit=self.n_posts):
                 # Checks If Subreddit Has Been Visited Or not
                 if post.id in seen_ids:
                     continue
@@ -138,7 +144,7 @@ class RedditSpider(scrapy.Spider):
                     continue
 
                 # Fetch Their Recent Submission
-                submissions = self.reddit.redditor(author).submissions.new(limit=5)
+                submissions = self.reddit.redditor(author).submissions.new(limit=self.n_submissions)
                 subreddits = [s.subreddit.display_name for s in submissions]
 
                 # Collect new subreddits not yet crawled
