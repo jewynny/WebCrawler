@@ -4,7 +4,7 @@ A Scrapy-based Reddit crawler for continuously fetching subreddit posts and orga
 ## Features
 
 * **`authors_spider.py`**: Scrapy spider that fetches posts from a specified subreddit using the Reddit JSON API.
-* **`run.py`**: Wrapper script to continuously execute the spider, suppress its console output, split output into per-subreddit files, and save partial results on interruption.
+* **`run.py`**: Wrapper script to continuously execute the spider, append each run in to single `*.jl` file, and save partial results on interruption.
 
 ## Repository Structure
 
@@ -26,13 +26,18 @@ pip install praw
 
 ## Configuration
 
-* **Posts per Subreddit to crawl (`n_posts`)**: Number of hot posts to fetch per subreddit (default: `10`, defined in `authors_spider.py`).
-* **Submissions per Author to crawl (`n_submissions`)**: Number of newest submissions to fetch per author (default: `5`, defined in `authors_spider.py`).
+* **Posts per Subreddit to crawl (`n_posts`)**: Number of hot posts to fetch per subreddit (default: `1000`, defined in `authors_spider.py`).
+* **Submissions per Author to crawl (`n_submissions`)**: Number of newest submissions to fetch per author (default: `100`, defined in `authors_spider.py`).
 * **Subreddit**: Modify the `subreddits_to_crawl` in `authors_spider.py` to target your desired subreddit(s) to start the crawling.
-* **Output Directory**: By default, `run.py` writes JSON files into a folder named `data/`. Use the `-o` flag to change:
+* **Output Directory**: By default, `run.py` writes JSON-line files into a folder named `data/`. Use the `-o` flag to change:
 
   ```bash
   python run.py -o path/to/output_dir
+  ```
+* **Output Filename**: Use `-f` flag to change the name of the main output file:
+
+  ```bash
+  python run.py -f output.jl
   ```
 * **Interval**: Control the delay between successive crawls (in seconds) with the `-i` flag (default `1` second):
 
@@ -54,14 +59,13 @@ python run.py
 
 3. **Interrupt & Recover**: Press `Ctrl+C` during a crawl run; the script will:
 
-   * Split any scraped items in progress
-   * Save them into `<subreddit>_partial.json` files in the output directory
-   * Exit cleanly without losing data
+   * Save them into `{timestamp}_partial.jl` files in the output directory
+   * On the next rerun, crawler will pick up new subreddits to explore on `new_subreddits.json`. Partial date 
 
 ## Output Files
 
-* On successful runs: `data/<subreddit>.json` (one-item-per-line JSON array)
-* On interruption: `data/<subreddit>_partial.json`
+* On successful runs: `data/output.jl` (JSON-line file)
+* On interruption: `data/{timestamp}_partial.jl`
 
 
 

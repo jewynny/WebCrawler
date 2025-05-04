@@ -10,9 +10,9 @@ class RedditSpider(scrapy.Spider):
     # crawler name (to be used in `scrapy crawl [name] -O 'output.json'`)
     name = "redditor"
     # number of hot posts per subreddit
-    n_posts = 10
+    n_posts = 1000
     # number of newest submissions per user (to find their submissions)
-    n_submissions = 5
+    n_submissions = 10
 
 
     # Information Required To Access Reddit
@@ -98,7 +98,7 @@ class RedditSpider(scrapy.Spider):
             seen_ids = set()
 
             # Grabs The Number Of Posts Specified
-            for post in subreddit.hot(limit=self.n_posts):
+            for post in subreddit.top(limit=self.n_posts, time_filter='all'):
                 # Checks If Subreddit Has Been Visited Or not
                 if post.id in seen_ids:
                     continue
