@@ -1,67 +1,69 @@
 # WebCrawler
-A Scrapy-based Reddit crawler for continuously fetching subreddit posts and organizing output by subreddit. Includes a `run.py` script to automate crawling at regular intervals, handle interruptions gracefully, and store partial results.
+
+A multi-threaded Scrapy-based Reddit crawler that continuously fetches subreddit posts, crawls authors' recent submissions, and manages output in a threaded pipeline.
 
 ## Features
 
-* **`authors_spider.py`**: Scrapy spider that fetches posts from a specified subreddit using the Reddit JSON API.
-* **`run.py`**: Wrapper script to continuously execute the spider, suppress its console output, split output into per-subreddit files, and save partial results on interruption.
+* **`authors_spider.py`**: Scrapy spider (`redditor`) that:
+
+  * Fetches top posts from each subreddit (default `n_posts = 1000`).
+  * Extracts post data (`subreddit`, `title`, `author`, `id`, `score`, `url`, `selftext`, `inner_urls`).
+  * Tracks unique authors and fetches their recent submissions (default `n_submissions = 3`).
+  * Maintains `visited_authors.jsonl` and `visited_subreddits.jsonl` for incremental crawling.
+  * Saves newly discovered subreddits to `new_subreddits.json`.
+
+* **`multi_thread_runner.py`**: Orchestrates multi-threaded crawling:
+
+  * Splits the subreddit list (from `new_subreddits.json`) into `NUM_THREADS` chunks.
+  * Writes sublists to `temp/temp_subreddits_{index}.json`.
+  * Runs multiple `redditor` spider instances in parallel, each outputting to `temp/output_{index}.jsonl`.
+  * Merges thread outputs into `final/output_{index}.jsonl`.
+  * Handles `Ctrl+C` gracefully: cleans up temp files on interruption.
 
 ## Repository Structure
 
 ```
 WebCrawler/
-├── scrapy.cfg                # Scrapy project config
-├── run.py                    # Continuous crawl orchestration
-└── RedditCrawler/            # Scrapy project folder
+├── scrapy.cfg                  # Scrapy project config
+├── multi_thread_runner.py      # Multi-threaded crawl orchestrator
+└── RedditCrawler/
     └── spiders/
-        └── authors_spider.py # Spider implementation
+        └── authors_spider.py   # Spider implementation
 ```
 
 ## Prerequisites
 
 ```bash
-pip install scrapy
-pip install praw
+pip install scrapy praw
 ```
 
 ## Configuration
 
-* **Posts per Subreddit to crawl (`n_posts`)**: Number of hot posts to fetch per subreddit (default: `10`, defined in `authors_spider.py`).
-* **Submissions per Author to crawl (`n_submissions`)**: Number of newest submissions to fetch per author (default: `5`, defined in `authors_spider.py`).
-* **Subreddit**: Modify the `subreddits_to_crawl` in `authors_spider.py` to target your desired subreddit(s) to start the crawling.
-* **Output Directory**: By default, `run.py` writes JSON files into a folder named `data/`. Use the `-o` flag to change:
-
-  ```bash
-  python run.py -o path/to/output_dir
-  ```
-* **Interval**: Control the delay between successive crawls (in seconds) with the `-i` flag (default `1` second):
-
-  ```bash
-  python run.py -i 10
-  ```
+* **Threads (`NUM_THREADS`)**: Number of parallel spider instances (default `8`, defined in `multi_thread_runner.py`).
+* **Temporary Directory (`TEMP_DIR`)**: Directory for intermediate JSONL outputs (default `temp`).
+* **Final Directory (`FINAL_DIR`)**: Directory for merged outputs (default `final`).
+* **Posts per Subreddit (`n_posts`)**: Number of top posts to fetch per subreddit (default `1000`, defined in `authors_spider.py`).
+* **Submissions per Author (`n_submissions`)**: Number of recent submissions to fetch per author (default `3`, defined in `authors_spider.py`).
+* **Subreddit Seed File**: Use `new_subreddits.json` to seed the initial list of subreddits. The spider will also update this file with newly discovered subreddits.
+* **Visited Maps**: `visited_authors.jsonl` and `visited_subreddits.jsonl` track already crawled authors and subreddits to avoid reprocessing.
 
 ## Usage
 
-1. **To run scraper once**:
-```bash
-scrapy crawl redditor -O 'output.json'
-```
+1. **Seed initial subreddits** (optional):
 
-2. **To continuously run scraper**:
-```bash
-python run.py
-```
+   ```bash
+   echo '["subreddit1","subreddit2"]' > new_subreddits.json
+   ```
 
-3. **Interrupt & Recover**: Press `Ctrl+C` during a crawl run; the script will:
+2. **Run the crawler**:
 
-   * Split any scraped items in progress
-   * Save them into `<subreddit>_partial.json` files in the output directory
-   * Exit cleanly without losing data
+   ```bash
+   python multi_thread_runner.py
+   ```
+
+3. **Interrupt & Recover**: Press `Ctrl+C` to stop. Temporary files in `temp/` will be cleaned up, and all finalized outputs remain in `final/`.
 
 ## Output Files
 
-* On successful runs: `data/<subreddit>.json` (one-item-per-line JSON array)
-* On interruption: `data/<subreddit>_partial.json`
-
-
-
+* **Intermediate**: `temp/output_{index}.jsonl` for each thread.
+* **Final**: `final/output_{index}.jsonl` combining each thread's results.

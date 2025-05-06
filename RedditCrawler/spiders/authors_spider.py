@@ -1,8 +1,6 @@
 import scrapy
 import praw
 import re
-
-# Used To Track Visited Items
 import json
 import os
 
@@ -10,13 +8,14 @@ class RedditSpider(scrapy.Spider):
     # crawler name (to be used in `scrapy crawl [name] -O 'output.json'`)
     name = "redditor"
     # number of hot posts per subreddit
-    n_posts = 10
+    n_posts = 1000
     # number of newest submissions per user (to find their submissions)
-    n_submissions = 5
-
+    n_submissions = 3
 
     # Information Required To Access Reddit
-    def __init__(self):
+    def __init__(self, subfile=None, **kwargs):
+        super().__init__(**kwargs)
+
         self.reddit = praw.Reddit(
             client_id="UNOl9Xj48ouJr9Lul6WbhQ",
             client_secret="VngShcJvHzj66J3chWlj-ZgMb7Q3Sg",
@@ -25,32 +24,27 @@ class RedditSpider(scrapy.Spider):
             password="Hassan123*"
         )
 
-        # Load Subreddit From new_subreddits.json if it exists
-        if os.path.exists("new_subreddits.json"):
+        # Load subreddits from the temp file passed via -a subfile=...
+        if subfile and os.path.exists(subfile):
             try:
-                with open("new_subreddits.json", "r") as f:
+                with open(subfile, "r") as f:
                     self.subreddits_to_crawl = json.load(f)
-                    self.logger.info(f"Loaded {len(self.subreddits_to_crawl)} new_subreddits.json")
+                    self.logger.info(f"Loaded {len(self.subreddits_to_crawl)} subreddits from {subfile}")
             except Exception as e:
-                self.logger.warning(f"Couldn't load new_subreddits.json: {e}")
+                self.logger.warning(f"Couldn't load {subfile}: {e}")
                 self.subreddits_to_crawl = ["AmItheAsshole"]
         else:
-            # If No File start With This
-            self.subreddits_to_crawl = ["AmItheAsshole"]
-
-        # Subreddits That Need To Be Crawled
-        #self.subreddits_to_crawl = [
-            #"AmItheAsshole",
-            # "todayilearned",
-            # "AskReddit",
-            # "funny",
-            # "worldnews",
-            # "gaming",
-            # "technology",
-            # "interestingasfuck",
-            # "NoStupidQuestions",
-            #"janellesuckshassanroc"
-        #]
+            # If no file provided or file is missing, fallback
+            if os.path.exists("new_subreddits.json"):
+                try:
+                    with open("new_subreddits.json", "r") as f:
+                        self.subreddits_to_crawl = json.load(f)
+                        self.logger.info(f"Loaded {len(self.subreddits_to_crawl)} new_subreddits.json")
+                except Exception as e:
+                    self.logger.warning(f"Couldn't load new_subreddits.json: {e}")
+                    self.subreddits_to_crawl = ["AmItheAsshole"]
+            else:
+                self.subreddits_to_crawl = ["AmItheAsshole"]
 
         # Stores Post Temp
         self.collected_items = []     
@@ -79,10 +73,7 @@ class RedditSpider(scrapy.Spider):
             except Exception as e:
                 self.logger.warning(f"Couldn't load visited_subreddits.json: {e}")
 
-        self.visited_authors = set(self.subreddits_to_crawl)
-        for sublist in self.visited_map.values():
-            self.visited_authors.update(sublist)
-
+        self.visited_authors = set(self.visited_map.keys())
         self.new_subreddits = set()
 
     # Goes Through Post Body And Extracts Link That Starts With Https
@@ -98,7 +89,7 @@ class RedditSpider(scrapy.Spider):
             seen_ids = set()
 
             # Grabs The Number Of Posts Specified
-            for post in subreddit.hot(limit=self.n_posts):
+            for post in subreddit.top(limit=3, time_filter='all'):
                 # Checks If Subreddit Has Been Visited Or not
                 if post.id in seen_ids:
                     continue
@@ -147,9 +138,9 @@ class RedditSpider(scrapy.Spider):
                 submissions = self.reddit.redditor(author).submissions.new(limit=self.n_submissions)
                 subreddits = [s.subreddit.display_name for s in submissions]
 
-                # Collect new subreddits not yet crawled
+                # Collect new subreddits not yet crawled or queued
                 for sub in subreddits:
-                    if sub not in self.visited_authors:
+                    if sub not in self.visited_subreddits and sub not in self.new_subreddits:
                         self.new_subreddits.add(sub)
 
                 # Save In Memory And In Visited Map
@@ -172,21 +163,25 @@ class RedditSpider(scrapy.Spider):
 
             yield item
 
-        # Updates Visited Authors Json File
+        # Append Visited Authors to visited_authors.jsonl
         try:
-            with open("visited_authors.json", "w") as f:
-                json.dump(self.visited_map, f, indent=2)
-            self.logger.info("Saved Successfully.")
+            with open("visited_authors.jsonl", "a") as f:
+                for author, subs in self.visited_map.items():
+                    line = json.dumps({"author": author, "subreddits": subs})
+                    f.write(line + "\n")
+            self.logger.info("Appended to visited_authors.jsonl")
         except Exception as e:
-            self.logger.warning(f"Failed To Save: {e}")
+            self.logger.warning(f"Failed to append visited_authors.jsonl: {e}")
 
-        # Updated Visited Subreddit File
+        # Append Visited Subreddits to visited_subreddits.jsonl
         try:
-            with open("visited_subreddits.json", "w") as f:
-                json.dump(sorted(list(self.visited_subreddits)), f, indent=2)
-            self.logger.info("Saved visited_subreddits.json")
+            with open("visited_subreddits.jsonl", "a") as f:
+                for sub in self.visited_subreddits:
+                    f.write(json.dumps(sub) + "\n")
+            self.logger.info("Appended to visited_subreddits.jsonl")
         except Exception as e:
-            self.logger.warning(f"Failed to save visited_subreddits.json: {e}")
+            self.logger.warning(f"Failed to append visited_subreddits.jsonl: {e}")
+
 
         # Save Newly Discovered Subreddits To File
         try:
