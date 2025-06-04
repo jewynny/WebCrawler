@@ -1,0 +1,21 @@
+{% extends "search.html" %}
+{% block body %}
+  {{ super() }}
+  <h5 class="mt-4">Results for “{{ q }}”</h5>
+
+  {% if hits %}
+    <ul class="list-group mt-3">
+    {% for row in hits %}
+      <li class="list-group-item">
+        <strong>{{ row.title }}</strong><br>
+        <a href="{{ row.url }}" target="_blank">{{ row.url }}</a><br>
+        Subreddit: {{ row.subreddit }} |
+        Author: {{ row.author }} |
+        Score: {{ "%.3f"|format(row.final) }}
+      </li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted mt-3">No results found.</p>
+  {% endif %}
+{% endblock %}
