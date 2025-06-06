@@ -9,7 +9,7 @@ This is a Flask web application that uses **Apache Lucene** to search and rank R
   - Relevance (Lucene score)  
   - Upvotes  
   - Combined: 0.8 * relevance + 0.2 * log(1 + upvotes)
-- Clean Bootstrap UI for inputs and results
+- UI for inputs and results
 - Displays top 10 results with:  
   - Title (linked)  
   - Subreddit  
