@@ -30,7 +30,7 @@ WebCrawler/
     └── indexing/
         └── reddit_index/
                 └── Index Files #1    There Are A Ton Of Index Files,
-                └── Index Files #2   All Would Be Located hERE
+                └── Index Files #2    All Would Be Located Here
                 └── Index Files #...
 ```
 
