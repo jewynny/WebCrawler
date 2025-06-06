@@ -26,9 +26,12 @@ def index_jsonl(jsonl_dir, index_dir='reddit_index'):
 
                         
                         doc.add(StringField("id", post.get("id", "") or "", Field.Store.YES))
+                
                         author = post.get("author")
                         if author and isinstance(author, str):
                             doc.add(StringField("author", author, Field.Store.YES))
+                            
+                        print("Indexing author:", repr(author))
 
                         doc.add(StringField("subreddit", post.get("subreddit", "") or "", Field.Store.YES))
                         doc.add(StringField("url", post.get("url", "") or "", Field.Store.YES))

@@ -1,21 +1,33 @@
 {% extends "search.html" %}
+
 {% block body %}
-  {{ super() }}
-  <h5 class="mt-4">Results for “{{ q }}”</h5>
+  <h5 class="mt-4 mb-2 reddit-brand"><i class="bi bi-search"></i> Results for: <span class="text-dark">“{{ q }}”</span></h5>
+  <p class="mb-4 text-muted small">Click any result card to open the post on Reddit.</p>
 
   {% if hits %}
-    <ul class="list-group mt-3">
-    {% for row in hits %}
-      <li class="list-group-item">
-        <strong>{{ row.title }}</strong><br>
-        <a href="{{ row.url }}" target="_blank">{{ row.url }}</a><br>
-        Subreddit: {{ row.subreddit }} |
-        Author: {{ row.author }} |
-        Score: {{ "%.3f"|format(row.final) }}
-      </li>
-    {% endfor %}
-    </ul>
+    <div class="row row-cols-1 g-3">
+      {% for row in hits %}
+      <div class="col">
+        <a href="{{ row.url }}" target="_blank" class="text-decoration-none">
+          <div class="card shadow-sm h-100" style="cursor: pointer;">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="card-title fw-bold text-dark mb-0">{{ row.title }}</h6>
+                <i class="bi bi-box-arrow-up-right text-muted"></i>
+              </div>
+              <p class="card-subtitle mb-2 text-muted small">
+                Subreddit: <strong>{{ row.subreddit }}</strong> | Author: <strong>{{ row.author }}</strong>
+              </p>
+              <p class="card-text"><small class="text-muted">Score: {{ "%.3f"|format(row.final) }}</small></p>
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
   {% else %}
-    <p class="text-muted mt-3">No results found.</p>
+    <div class="alert alert-warning mt-3">
+      No results found for <strong>{{ q }}</strong>.
+    </div>
   {% endif %}
 {% endblock %}

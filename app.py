@@ -36,6 +36,7 @@ def search():
     lucene.getVMEnv().attachCurrentThread()
 
     qstring = request.form.get("q", "").strip()
+    rank_method = request.form.get("rank_method", "combined") # ec
     if not qstring:
         return render_template("search.html", error="Enter a query")
 
@@ -44,17 +45,34 @@ def search():
     hits         = searcher.search(lucene_query, 100).scoreDocs
     print("Hits:", len(hits))
 
-    # score = 0.8 * BM25 + 0.2 * log(1+upvotes)
+    
     results = []
     for h in hits:
-        doc         = searcher.doc(h.doc)
+        # old method for scoring
+        # score = 0.8 * BM25 + 0.2 * log(1+upvotes)
+        # doc         = searcher.doc(h.doc)
+        # lucene_score = h.score
+        # upvotes      = float(doc.get("reddit_score") or 0)
+        # final_score  = 0.8 * lucene_score + 0.2 * math.log1p(upvotes)
+
+        # ec scoring method
+        doc          = searcher.doc(h.doc)
         lucene_score = h.score
         upvotes      = float(doc.get("reddit_score") or 0)
-        final_score  = 0.8 * lucene_score + 0.2 * math.log1p(upvotes)
+        pagerank     = float(doc.get("pagerank") or 0)
 
+        if rank_method == "relevance":
+            final_score = lucene_score
+        elif rank_method == "upvotes":
+            final_score = upvotes
+        # elif rank_method == "pagerank":
+        #     final_score = pagerank
+        else:  # default to combined
+            final_score = 0.8 * lucene_score + 0.2 * math.log1p(upvotes)
+        
         author = doc.get("author")
         if not author:
-            author = "unknown"                          # deleted user, etc.
+            author = "blank"                          # deleted user, etc.
 
         results.append({
             "final"     : final_score,
